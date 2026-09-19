@@ -263,20 +263,18 @@ function applyGlobalRange() {
 }
 
 function applyGlobalPage() {
-  let page = parseInt($('#pageInputGlobal').value, 10) || 1;
-  page = Math.max(1, Math.min(page, 604));
-  state.currentPage = page;
+  let target = parseInt($('#pageInputGlobal').value, 10) || 1;
+  const max = AYAH_COUNTS[state.currentSurah - 1] || AYAH_COUNTS[0] || 100;
+  target = Math.max(1, Math.min(target, max));
 
   // Si le lecteur n'est pas ouvert, ouvrir Al-Fatiha
   if ($('#readerSection').style.display === 'none') {
     openSurah(1);
   }
-  const verse = estimateVerseForPage(state.currentSurah, page);
-  if (verse) {
-    state.currentVerse = verse;
-    updatePlayerStatus(`Page ${page}`);
-    loadVerse(state.currentSurah, verse);
-  }
+  state.currentVerse = target;
+  state.currentPage = target;
+  updatePlayerStatus(`Verset ${target}`);
+  loadVerse(state.currentSurah, target);
 }
 
 function estimateVerseForPage(surah, page) {
