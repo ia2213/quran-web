@@ -253,14 +253,6 @@ body { overflow-x: hidden; }
           </div>
         </div>
       </div>
-      <div class="loop-page-config-global" id="loopPageConfigGlobal" style="display:none;padding:8px 16px 10px;background:var(--header-bg)">
-        <div class="page-input-row">
-          <label style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap">Boucle page</label>
-          <input type="number" id="loopPageInput" min="1" max="604" value="1" style="width:60px;padding:4px 6px;border:0.5px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;outline:none">
-          <button class="page-go-btn" id="loopPageApplyBtn">Fixer</button>
-        </div>
-        <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">La boucle répète cette page spécifique</div>
-      </div>
       <div class="range-config-global" id="rangeConfigGlobal" style="display:none">
         <div class="range-inputs">
           <div class="range-field">
@@ -279,6 +271,14 @@ body { overflow-x: hidden; }
           <label style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap">Aller au verset</label>
           <input type="number" id="pageInputGlobal" min="1" max="604" value="1" style="width:60px;padding:4px 6px;border:0.5px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;outline:none">
           <button class="page-go-btn" id="pageGoBtnGlobal">Aller</button>
+        </div>
+        <div class="loop-page-config" id="loopPageConfig" style="display:none;margin-top:8px;padding:8px 12px;background:var(--surface-alt);border-radius:var(--radius-sm)">
+          <div class="page-input-row">
+            <label style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap">Boucle page</label>
+            <input type="number" id="loopPageInput" min="1" max="604" value="1" style="width:60px;padding:4px 6px;border:0.5px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;outline:none" disabled>
+            <button class="page-go-btn" id="loopPageApplyBtn" disabled>Fixer</button>
+          </div>
+          <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">La boucle répète cette page spécifique</div>
         </div>
       </div>
     </div>
@@ -605,16 +605,16 @@ function setLoopMode(mode) {
   state.loopMode = mode;
   updateLoopUI();
   // Afficher/masquer le champ boucle page
-  const loopPageConfigGlobal = $('#loopPageConfigGlobal');
+  const loopPageConfig = $('#loopPageConfig');
   const loopPageInput = $('#loopPageInput');
   const loopPageApplyBtn = $('#loopPageApplyBtn');
   if (mode === 'page') {
-    loopPageConfigGlobal.style.display = 'block';
+    loopPageConfig.style.display = 'block';
     loopPageInput.disabled = false;
     loopPageApplyBtn.disabled = false;
     loopPageInput.value = state.loopPage || 1;
   } else {
-    loopPageConfigGlobal.style.display = 'none';
+    loopPageConfig.style.display = 'none';
     loopPageInput.disabled = true;
     loopPageApplyBtn.disabled = true;
   }
