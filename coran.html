@@ -107,6 +107,8 @@ body { overflow-x: hidden; }
 .page-go-btn { padding: 5px 12px; border: none; border-radius: var(--radius-sm); background: var(--primary); color: white; font-size: 11px; font-weight: 500; cursor: pointer; transition: all 0.15s ease; font-family: inherit; white-space: nowrap; }
 .page-go-btn:hover { background: var(--primary-dark); }
 .page-go-btn:active { transform: scale(0.97); }
+.loop-page-config { display: none; margin-top: 8px; padding: 8px 12px; background: var(--surface-alt); border-radius: var(--radius-sm); }
+.loop-page-config.visible { display: block; }
 .search-container { max-width: 768px; margin: 0 auto; padding: 12px 16px 4px; position: relative; z-index: 97; }
 .search-box { position: relative; display: flex; align-items: center; }
 .search-icon { position: absolute; left: 14px; color: var(--text-tertiary); pointer-events: none; }
@@ -244,6 +246,7 @@ body { overflow-x: hidden; }
             <option value="verse" selected>Répétition: Verset</option>
             <option value="surah">Répétition: Sourate</option>
             <option value="page">Répétition: Page</option>
+            <option value="allerVerset">Aller au verset</option>
           </select>
           <div class="reciter-select">
             <select id="reciterSelect"></select>
@@ -268,6 +271,14 @@ body { overflow-x: hidden; }
           <label style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap">Aller au verset</label>
           <input type="number" id="pageInputGlobal" min="1" max="604" value="1" style="width:60px;padding:4px 6px;border:0.5px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;outline:none">
           <button class="page-go-btn" id="pageGoBtnGlobal">Aller</button>
+        </div>
+        <div class="loop-page-config" id="loopPageConfig" style="display:none;margin-top:8px;padding:8px 12px;background:var(--surface-alt);border-radius:var(--radius-sm)">
+          <div class="page-input-row">
+            <label style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.3px;white-space:nowrap">Boucle page</label>
+            <input type="number" id="loopPageInput" min="1" max="604" value="1" style="width:60px;padding:4px 6px;border:0.5px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);font-size:12px;font-family:inherit;outline:none" disabled>
+            <button class="page-go-btn" id="loopPageApplyBtn" disabled>Fixer</button>
+          </div>
+          <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">La boucle répète cette page spécifique</div>
         </div>
       </div>
     </div>
@@ -420,7 +431,8 @@ const state = {
   rangeStart: 1,
   rangeEnd: 5,
   loopEnabled: false,
-  loopMode: 'verse', // verse | surah | off
+  loopMode: 'verse', // verse | surah | off | page
+  loopPage: 1, // Page à boucler (quand loopMode === 'page')
   currentPage: 1,
   downloadedSurahs: {},
   downloading: {},
@@ -756,10 +768,29 @@ function onAudioEnded() {
   } else if (state.loopMode === 'surah') {
     nextVerse();
   } else if (state.loopMode === 'page') {
-    nextPage();
+    // Boucler sur la page fixée ou passer à la page suivante
+    if (state.loopPage && state.loopPage > 0) {
+      goToPage(state.loopPage);
+    } else {
+      nextPage();
+    }
   } else {
     nextVerse();
   }
+}
+
+function goToPage(pageNum) {
+  const firstVerseOfPage = (pageNum - 1) * 15 + 1;
+  const max = AYAH_COUNTS[state.currentSurah - 1];
+  if (firstVerseOfPage <= max) {
+    state.currentVerse = firstVerseOfPage;
+  } else if (state.currentSurah < 114) {
+    state.currentSurah++;
+    state.currentVerse = 1;
+  }
+  loadVerse(state.currentSurah, state.currentVerse).then(() => {
+    playCurrentVerse();
+  });
 }
 
 function nextPage() {
