@@ -17,7 +17,6 @@
 </head>
 <body>
   <div id="app">
-    <!-- Header -->
     <header class="header">
       <div class="header-content">
         <h1 class="logo">📖 Coran</h1>
@@ -30,7 +29,6 @@
       </div>
     </header>
 
-    <!-- Search -->
     <div class="search-container">
       <div class="search-box">
         <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -40,9 +38,8 @@
       <div class="search-results" id="searchResults" style="display:none"></div>
     </div>
 
-    <!-- Main Content -->
     <main class="main">
-      <!-- Surah List -->
+      <!-- Liste des sourates -->
       <section class="section" id="surahList">
         <div class="section-header">
           <h2>Sourates</h2>
@@ -51,7 +48,7 @@
         <div class="surah-grid" id="surahGrid"></div>
       </section>
 
-      <!-- Verse Reader (hidden initially) -->
+      <!-- Lecteur -->
       <section class="section" id="readerSection" style="display:none">
         <div class="reader-header">
           <button class="back-btn" id="backToList">
@@ -64,19 +61,56 @@
           </div>
         </div>
 
+        <!-- Modes de lecture & options -->
         <div class="reader-controls">
+          <div class="mode-selector">
+            <label>Mode</label>
+            <div class="mode-chips">
+              <button class="mode-chip active" data-mode="single">Single</button>
+              <button class="mode-chip" data-mode="range">Plage</button>
+              <button class="mode-chip" data-mode="page">Page</button>
+              <button class="mode-chip" data-mode="loop">Boucle</button>
+            </div>
+          </div>
           <div class="reciter-select">
             <label for="reciterSelect">Récitateur</label>
             <select id="reciterSelect"></select>
           </div>
-          <div class="text-options">
-            <button class="opt-btn active" data-opt="arabic">Arabe</button>
-            <button class="opt-btn" data-opt="transliteration">Phonétique</button>
-            <button class="opt-btn" data-opt="translation">Traduction</button>
+        </div>
+
+        <!-- Range selector (visible en mode range) -->
+        <div class="range-config" id="rangeConfig" style="display:none">
+          <div class="range-inputs">
+            <div class="range-field">
+              <label>Du verset</label>
+              <input type="number" id="rangeStart" min="1" value="1">
+            </div>
+            <div class="range-field">
+              <label>Au verset</label>
+              <input type="number" id="rangeEnd" min="1" value="5">
+            </div>
+            <button class="range-apply-btn" id="rangeApplyBtn">Appliquer</button>
           </div>
         </div>
 
-        <div class="verse-display">
+        <!-- Page selector (visible en mode page) -->
+        <div class="page-config" id="pageConfig" style="display:none">
+          <div class="page-input-row">
+            <label>Page</label>
+            <input type="number" id="pageInput" min="1" max="604" value="1">
+            <button class="page-go-btn" id="pageGoBtn">Aller</button>
+          </div>
+        </div>
+
+        <!-- Options texte -->
+        <div class="text-options">
+          <button class="opt-btn active" data-opt="arabic">Arabe</button>
+          <button class="opt-btn" data-opt="transliteration">Phonétique</button>
+          <button class="opt-btn" data-opt="translation">Traduction</button>
+        </div>
+
+        <!-- Affichage du verset -->
+        <div class="verse-display" id="verseDisplay">
           <div class="verse-arabic" id="verseArabic">
             <p class="verse-number" id="verseNumber">1</p>
             <p class="arabic-text" id="arabicText">—</p>
@@ -89,6 +123,7 @@
           </div>
         </div>
 
+        <!-- Contrôles de lecture -->
         <div class="player-controls">
           <div class="player-info">
             <span class="player-status" id="playerStatus">Prêt</span>
@@ -116,13 +151,17 @@
             <input type="range" class="progress-bar" id="progressBar" min="0" max="100" value="0" step="0.1">
           </div>
         </div>
+
+        <!-- Bouton téléchargement -->
+        <button class="download-btn" id="downloadBtn" title="Télécharger pour hors-ligne">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Télécharger</span>
+        </button>
       </section>
     </main>
 
-    <!-- Audio element (hidden) -->
     <audio id="audioPlayer" style="display:none"></audio>
 
-    <!-- Footer -->
     <footer class="footer">
       <p>Coran.cc — Lecture en ligne du Saint Coran</p>
       <p class="footer-small">Utilise l'API Alquran.cloud pour les textes et récitations</p>
