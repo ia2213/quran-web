@@ -85,9 +85,9 @@ body { overflow-x: hidden; }
 .mode-chip.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 2px 6px var(--primary); }
 .mode-chip:active { transform: scale(0.96); }
 .options-row-right { display: flex; align-items: center; gap: 6px; }
-.loop-toggle { display: flex; align-items: center; gap: 5px; padding: 5px 10px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-secondary); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s ease; font-family: inherit; }
-.loop-toggle.active { background: var(--warning); color: white; border-color: var(--warning); box-shadow: 0 2px 6px var(--warning); }
-.loop-toggle:active { transform: scale(0.96); }
+.loop-toggle { display: none; }
+.loop-mode-select { padding: 5px 8px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: 12px; font-family: inherit; outline: none; cursor: pointer; max-width: 130px; }
+.loop-mode-select:focus { border-color: var(--primary); }
 .reciter-select { display: flex; flex-direction: column; gap: 3px; }
 .reciter-select select { padding: 5px 8px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: 12px; font-family: inherit; outline: none; cursor: pointer; max-width: 140px; }
 .reciter-select select:focus { border-color: var(--primary); }
@@ -239,10 +239,12 @@ body { overflow-x: hidden; }
           </div>
         </div>
         <div class="options-row-right">
-          <button class="loop-toggle" id="loopToggle" title="Activer la boucle">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-            <span>Boucle</span>
-          </button>
+          <select class="loop-mode-select" id="loopModeSelect" title="Mode de répétition">
+            <option value="off">Répétition: Off</option>
+            <option value="verse" selected>Répétition: Verset</option>
+            <option value="surah">Répétition: Sourate</option>
+            <option value="page">Répétition: Page</option>
+          </select>
           <div class="reciter-select">
             <select id="reciterSelect"></select>
           </div>
@@ -418,6 +420,7 @@ const state = {
   rangeStart: 1,
   rangeEnd: 5,
   loopEnabled: false,
+  loopMode: 'verse', // verse | surah | off
   currentPage: 1,
   downloadedSurahs: {},
   downloading: {},
@@ -439,9 +442,8 @@ function syncGlobalUI() {
   $$('.mode-chip').forEach(chip => {
     chip.classList.toggle('active', chip.dataset.mode === state.readingMode);
   });
-  const loopBtn = $('#loopToggle');
-  loopBtn.classList.toggle('active', state.loopEnabled);
-  loopBtn.querySelector('span').textContent = state.loopEnabled ? 'Boucle ✓' : 'Boucle';
+  const loopBtn = $('#loopModeSelect');
+  loopBtn.value = state.loopMode;
   $('#rangeConfigGlobal').style.display = state.readingMode === 'range' ? 'block' : 'none';
   $('#rangeStartGlobal').value = state.rangeStart;
   $('#rangeEndGlobal').value = state.rangeEnd;
@@ -539,14 +541,17 @@ function closeReader() {
 
 function setReadingMode(mode) {
   state.readingMode = mode;
-  state.loopEnabled = false;
   $$('.mode-chip').forEach(chip => {
     chip.classList.toggle('active', chip.dataset.mode === mode);
   });
   $('#rangeConfigGlobal').style.display = mode === 'range' ? 'block' : 'none';
   $('#pageConfigGlobal').style.display = mode === 'page' ? 'block' : 'none';
-  $('#loopToggle').classList.toggle('active', state.loopEnabled);
-  $('#loopToggle').querySelector('span').textContent = state.loopEnabled ? 'Boucle ✓' : 'Boucle';
+  updateLoopUI();
+}
+
+function updateLoopUI() {
+  const sel = $('#loopModeSelect');
+  if (sel) sel.value = state.loopMode;
 }
 
 function applyGlobalRange() {
@@ -578,14 +583,16 @@ function applyGlobalPage() {
   loadVerse(state.currentSurah, target);
 }
 
-function toggleLoop() {
-  state.loopEnabled = !state.loopEnabled;
-  const btn = $('#loopToggle');
-  btn.classList.toggle('active', state.loopEnabled);
-  btn.querySelector('span').textContent = state.loopEnabled ? 'Boucle ✓' : 'Boucle';
-  updatePlayerStatus(state.loopEnabled ? 'Boucle activée' : 'Boucle désactivée');
+function updateLoopUI() {
+  const sel = $('#loopModeSelect');
+  if (sel) sel.value = state.loopMode;
+  updatePlayerStatus(`Répétition: ${state.loopMode === 'off' ? 'Off' : state.loopMode === 'verse' ? 'Verset' : state.loopMode === 'surah' ? 'Sourate' : 'Page'}`);
 }
 
+function setLoopMode(mode) {
+  state.loopMode = mode;
+  updateLoopUI();
+}
 function setReciter(reciterId) {
   state.reciter = reciterId;
   const select = $('#reciterSelect');
@@ -741,13 +748,34 @@ function playRange() {
 }
 
 function onAudioEnded() {
+  state.isPlaying = false;
   if (state.readingMode === 'range') return;
-  if (state.loopEnabled) {
+  if (state.loopMode === 'verse') {
     const url = getRecitationUrl(state.currentSurah, state.currentVerse, state.reciter);
     url.then(u => { if (u) playAudioUrl(u); });
+  } else if (state.loopMode === 'surah') {
+    nextVerse();
+  } else if (state.loopMode === 'page') {
+    nextPage();
   } else {
     nextVerse();
   }
+}
+
+function nextPage() {
+  const page = Math.floor((state.currentVerse - 1) / 15) + 1;
+  const nextPageNum = page + 1;
+  const firstVerseOfNextPage = (nextPageNum - 1) * 15 + 1;
+  const max = AYAH_COUNTS[state.currentSurah - 1];
+  if (firstVerseOfNextPage <= max) {
+    state.currentVerse = firstVerseOfNextPage;
+  } else if (state.currentSurah < 114) {
+    state.currentSurah++;
+    state.currentVerse = 1;
+  }
+  loadVerse(state.currentSurah, state.currentVerse).then(() => {
+    playCurrentVerse();
+  });
 }
 
 function prevVerse() {
@@ -762,7 +790,7 @@ function prevVerse() {
     state.currentVerse = AYAH_COUNTS[state.currentSurah - 1];
   }
   loadVerse(state.currentSurah, state.currentVerse).then(() => {
-    if (state.isPlaying) playCurrentVerse();
+    playCurrentVerse();
   });
 }
 
@@ -779,7 +807,7 @@ function nextVerse() {
     state.currentVerse = 1;
   }
   loadVerse(state.currentSurah, state.currentVerse).then(() => {
-    if (state.isPlaying) playCurrentVerse();
+    playCurrentVerse();
   });
 }
 
@@ -933,7 +961,7 @@ function setupEventListeners() {
   $$('.mode-chip').forEach(chip => {
     chip.addEventListener('click', () => setReadingMode(chip.dataset.mode));
   });
-  $('#loopToggle').addEventListener('click', toggleLoop);
+  $('#loopModeSelect').addEventListener('change', (e) => setLoopMode(e.target.value));
   $('#rangeApplyBtnGlobal').addEventListener('click', applyGlobalRange);
   $('#pageGoBtnGlobal').addEventListener('click', applyGlobalPage);
   $('#pageInputGlobal').addEventListener('keydown', (e) => {
