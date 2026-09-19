@@ -247,19 +247,19 @@ function setReadingMode(mode) {
 function applyGlobalRange() {
   let start = parseInt($('#rangeStartGlobal').value, 10) || 1;
   let end = parseInt($('#rangeEndGlobal').value, 10) || 5;
-  const max = AYAH_COUNTS[state.currentSurah - 1] || 100;
+  const max = AYAH_COUNTS[state.currentSurah - 1] || AYAH_COUNTS[0] || 100;
   start = Math.max(1, Math.min(start, max));
   end = Math.max(start, Math.min(end, max));
   state.rangeStart = start;
   state.rangeEnd = end;
 
-  if (state.currentSurah > 0 && $('#readerSection').style.display !== 'none') {
-    state.currentVerse = start;
-    updatePlayerStatus(`Plage: verset ${start}-${end}`);
-    loadVerse(state.currentSurah, start);
-  } else {
-    updatePlayerStatus(`Plage définie: verset ${start}-${end}`);
+  // Si le lecteur n'est pas ouvert, ouvrir Al-Fatiha
+  if ($('#readerSection').style.display === 'none') {
+    openSurah(1);
   }
+  state.currentVerse = start;
+  updatePlayerStatus(`Plage: verset ${start}-${end}`);
+  loadVerse(state.currentSurah, start);
 }
 
 function applyGlobalPage() {
@@ -267,15 +267,15 @@ function applyGlobalPage() {
   page = Math.max(1, Math.min(page, 604));
   state.currentPage = page;
 
-  if (state.currentSurah > 0 && $('#readerSection').style.display !== 'none') {
-    const verse = estimateVerseForPage(state.currentSurah, page);
-    if (verse) {
-      state.currentVerse = verse;
-      updatePlayerStatus(`Page ${page}`);
-      loadVerse(state.currentSurah, verse);
-    }
-  } else {
-    updatePlayerStatus(`Page ${page} (choisissez une sourate)`);
+  // Si le lecteur n'est pas ouvert, ouvrir Al-Fatiha
+  if ($('#readerSection').style.display === 'none') {
+    openSurah(1);
+  }
+  const verse = estimateVerseForPage(state.currentSurah, page);
+  if (verse) {
+    state.currentVerse = verse;
+    updatePlayerStatus(`Page ${page}`);
+    loadVerse(state.currentSurah, verse);
   }
 }
 
