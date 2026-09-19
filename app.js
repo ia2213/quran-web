@@ -1,11 +1,9 @@
 // ============================================================
 // Quran Web App — JavaScript
-// Fonctionnalités complètes : modes, téléchargement, pages
 // ============================================================
 
 const API = 'https://api.alquran.cloud/v1';
 
-// Données des 114 sourates
 const SURAH_NAMES = [
   'Al-Faatiha','Al-Baqara','Aal-i-Imraan','An-Nisaa','Al-Maaida',
   "Al-An'aam","Al-A'raaf","Al-Anfaal","At-Tawba","Yunus",
@@ -40,10 +38,6 @@ const AYAH_COUNTS = [
   30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,6,3,5,4,5,6,
 ];
 
-// Mini table des 20 dernières sourates pour navigation rapide
-const LAST_SURRAHS = [113, 114];
-
-// Récitateurs disponibles
 const RECITERS = [
   { id: 'ar.alafasy', label: 'Mishary Rashid Al-Afasy' },
   { id: 'ar.husary', label: 'Mahmoud Khalil Al-Husary' },
@@ -64,7 +58,7 @@ const RECITERS = [
 ];
 
 // ============================================================
-// ÉTAT DE L'APPLICATION
+// ÉTAT GLOBAL — visible depuis l'accueil
 // ============================================================
 const state = {
   currentSurah: 1,
@@ -75,31 +69,23 @@ const state = {
   showTranslation: false,
   theme: localStorage.getItem('quran-theme') || 'light',
   isPlaying: false,
-  isLoading: false,
   searchQuery: '',
-  // Modes de lecture
-  readingMode: 'single', // single | range | page | loop
+  // Options globales (accueil)
+  readingMode: 'single',
   rangeStart: 1,
   rangeEnd: 5,
   loopEnabled: false,
-  // Cache téléchargement
-  cache: {
-    reciter: null,
-    downloadedSurahs: {}, // { surahNum: true }
-    downloading: {},
-  },
-  // Page mode
   currentPage: 1,
+  // Cache
+  downloadedSurahs: {},
+  downloading: {},
 };
 
-// ============================================================
-// UTILITAIRES
-// ============================================================
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
 // ============================================================
-// INITIALISATION
+// INIT
 // ============================================================
 function init() {
   applyTheme(state.theme);
@@ -107,6 +93,35 @@ function init() {
   setupEventListeners();
   setupAudioPlayer();
   loadCacheStatus();
+
+  // Synchroniser les éléments UI globaux avec l'état
+  syncGlobalUI();
+}
+
+function syncGlobalUI() {
+  // Chips de mode
+  $$('.mode-chip').forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.mode === state.readingMode);
+  });
+
+  // Loop toggle
+  const loopBtn = $('#loopToggle');
+  loopBtn.classList.toggle('active', state.loopEnabled);
+  loopBtn.querySelector('span').textContent = state.loopEnabled ? 'Boucle ✓' : 'Boucle';
+
+  // Range config visibility
+  $('#rangeConfigGlobal').style.display = state.readingMode === 'range' ? 'block' : 'none';
+  $('#rangeStartGlobal').value = state.rangeStart;
+  $('#rangeEndGlobal').value = state.rangeEnd;
+
+  // Page config visibility
+  $('#pageConfigGlobal').style.display = state.readingMode === 'page' ? 'block' : 'none';
+  $('#pageInputGlobal').value = state.currentPage;
+
+  // Reciter select
+  const reciterSelect = $('#reciterSelect');
+  // (déjà peuplé dans setupEventListeners)
+  reciterSelect.value = state.reciter;
 }
 
 // ============================================================
@@ -123,22 +138,17 @@ function toggleTheme() {
 }
 
 // ============================================================
-// CHARGEMENT DES SOURATES
+// SOURATES
 // ============================================================
-async function loadSurahs() {
+function loadSurahs() {
   const grid = $('#surahGrid');
   const countEl = $('#surahCount');
-
   grid.innerHTML = '<div class="loading-spinner"><div class="spinner"></div></div>';
-
   try {
     renderSurahList(grid);
     countEl.textContent = `${SURAH_NAMES.length} sourates`;
-  } catch (e) {
-    grid.innerHTML = `<div class="empty-state">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-      <p>Impossible de charger les sourates.</p>
-    </div>`;
+  } catch {
+    grid.innerHTML = '<div class="empty-state"><p>Impossible de charger les sourates.</p></div>';
   }
 }
 
@@ -155,14 +165,10 @@ function renderSurahList(grid) {
       `<span style="width:${(j + 1) * 20}%"></span>`
     ).join('');
 
-    // Badge de téléchargement si disponible
-    let downloadBadge = '';
-    if (state.cache.downloadedSurahs[num]) {
-      downloadBadge = `<div class="surah-downloaded-badge" style="position:absolute;top:6px;right:6px;font-size:10px;color:var(--primary);font-weight:600">✓</div>`;
-    }
+    const badge = state.downloadedSurahs[num] ? '<span class="surah-downloaded-badge" style="position:absolute;top:6px;right:6px;font-size:10px;color:var(--primary);font-weight:600">✓</span>' : '';
 
     card.innerHTML = `
-      ${downloadBadge}
+      ${badge}
       <div class="surah-card-number">${num}</div>
       <div class="surah-card-name">${name}</div>
       <div class="surah-card-meta">${count} versets</div>
@@ -176,22 +182,19 @@ function renderSurahList(grid) {
     grid.appendChild(card);
   });
 
-  const activeCard = grid.querySelector('.surah-card.active');
-  if (activeCard) {
-    setTimeout(() => {
-      activeCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 100);
+  const active = grid.querySelector('.surah-card.active');
+  if (active) {
+    setTimeout(() => active.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
   }
 }
 
 // ============================================================
-// OUVERTURE/FERMETURE LECTEUR
+// LECTEUR
 // ============================================================
 function openSurah(surahNum) {
   state.currentSurah = surahNum;
   state.currentVerse = 1;
   state.isPlaying = false;
-  state.loopEnabled = false;
 
   $('#surahList').style.display = 'none';
   $('#readerSection').style.display = 'block';
@@ -210,9 +213,6 @@ function openSurah(surahNum) {
   $('#audioPlayer').currentTime = 0;
   $('#progressBar').value = 0;
 
-  // Configurer mode selon selection
-  configureModeUI();
-
   loadVerse(surahNum, 1);
   renderSurahList($('#surahGrid'));
   history.replaceState(null, '', `#surah-${surahNum}`);
@@ -229,80 +229,88 @@ function closeReader() {
 }
 
 // ============================================================
-// MODES DE LECTURE
+// MODE (global)
 // ============================================================
-function configureModeUI() {
-  // Cacher tous les configs
-  $('#rangeConfig').style.display = 'none';
-  $('#pageConfig').style.display = 'none';
-
-  // Afficher selon mode
-  if (state.readingMode === 'range') {
-    $('#rangeConfig').style.display = 'block';
-    $('#rangeStart').value = state.rangeStart;
-    $('#rangeEnd').value = Math.min(state.rangeEnd, AYAH_COUNTS[state.currentSurah - 1]);
-  } else if (state.readingMode === 'page') {
-    $('#pageConfig').style.display = 'block';
-    $('#pageInput').value = state.currentPage;
-  }
-}
-
 function setReadingMode(mode) {
   state.readingMode = mode;
   state.loopEnabled = false;
-
-  // Update chips
+  // Sync global UI
   $$('.mode-chip').forEach(chip => {
     chip.classList.toggle('active', chip.dataset.mode === mode);
   });
-
-  configureModeUI();
+  $('#rangeConfigGlobal').style.display = mode === 'range' ? 'block' : 'none';
+  $('#pageConfigGlobal').style.display = mode === 'page' ? 'block' : 'none';
+  $('#loopToggle').classList.toggle('active', state.loopEnabled);
+  $('#loopToggle').querySelector('span').textContent = state.loopEnabled ? 'Boucle ✓' : 'Boucle';
 }
 
-function applyRange() {
-  let start = parseInt($('#rangeStart').value, 10) || 1;
-  let end = parseInt($('#rangeEnd').value, 10) || 5;
-  const max = AYAH_COUNTS[state.currentSurah - 1];
-
+function applyGlobalRange() {
+  let start = parseInt($('#rangeStartGlobal').value, 10) || 1;
+  let end = parseInt($('#rangeEndGlobal').value, 10) || 5;
+  const max = AYAH_COUNTS[state.currentSurah - 1] || 100;
   start = Math.max(1, Math.min(start, max));
   end = Math.max(start, Math.min(end, max));
-
   state.rangeStart = start;
   state.rangeEnd = end;
-  state.currentVerse = start;
 
-  updatePlayerStatus(`Plage: verset ${start}-${end}`);
-  loadVerse(state.currentSurah, start);
+  if (state.currentSurah > 0 && $('#readerSection').style.display !== 'none') {
+    state.currentVerse = start;
+    updatePlayerStatus(`Plage: verset ${start}-${end}`);
+    loadVerse(state.currentSurah, start);
+  } else {
+    updatePlayerStatus(`Plage définie: verset ${start}-${end}`);
+  }
 }
 
-function applyPage() {
-  let page = parseInt($('#pageInput').value, 10) || 1;
-  const maxPage = 604;
-  page = Math.max(1, Math.min(page, maxPage));
+function applyGlobalPage() {
+  let page = parseInt($('#pageInputGlobal').value, 10) || 1;
+  page = Math.max(1, Math.min(page, 604));
   state.currentPage = page;
 
-  // Calculer le verset approximatif pour cette page
-  // Les pages coraniques sont numérotées 1-604
-  // On utilise une approximation basée sur la distribution
-  const verse = estimateVerseForPage(state.currentSurah, page);
-  if (verse) {
-    state.currentVerse = verse;
-    updatePlayerStatus(`Page ${page}`);
-    loadVerse(state.currentSurah, verse);
+  if (state.currentSurah > 0 && $('#readerSection').style.display !== 'none') {
+    const verse = estimateVerseForPage(state.currentSurah, page);
+    if (verse) {
+      state.currentVerse = verse;
+      updatePlayerStatus(`Page ${page}`);
+      loadVerse(state.currentSurah, verse);
+    }
+  } else {
+    updatePlayerStatus(`Page ${page} (choisissez une sourate)`);
   }
 }
 
 function estimateVerseForPage(surah, page) {
-  // Approximation: chaque page contient environ 15 versets en moyenne
-  // Pour une estimation plus précise, on utiliserait une API de pagination
   if (page < 1) return 1;
   const basePerPage = 15;
-  const verse = Math.min((page - 1) * basePerPage + 1, AYAH_COUNTS[surah - 1]);
-  return verse >= 1 ? verse : 1;
+  return Math.min((page - 1) * basePerPage + 1, AYAH_COUNTS[surah - 1]);
 }
 
 // ============================================================
-// CHARGEMENT DES VERSETS
+// BOUCLE (global)
+// ============================================================
+function toggleLoop() {
+  state.loopEnabled = !state.loopEnabled;
+  const btn = $('#loopToggle');
+  btn.classList.toggle('active', state.loopEnabled);
+  btn.querySelector('span').textContent = state.loopEnabled ? 'Boucle ✓' : 'Boucle';
+  updatePlayerStatus(state.loopEnabled ? 'Boucle activée' : 'Boucle désactivée');
+}
+
+// ============================================================
+// RÉCITATEUR (global)
+// ============================================================
+function setReciter(reciterId) {
+  state.reciter = reciterId;
+  const select = $('#reciterSelect');
+  if (select) select.value = reciterId;
+  if (state.isPlaying) {
+    stopPlayback();
+    playCurrentVerse();
+  }
+}
+
+// ============================================================
+// VERSETS
 // ============================================================
 async function loadVerse(surah, verse) {
   if (verse > AYAH_COUNTS[surah - 1] || verse < 1) return;
@@ -322,11 +330,6 @@ async function loadVerse(surah, verse) {
   if (state.showArabic && arabic) $('#arabicText').textContent = arabic;
   if (state.showTransliteration && translit) $('#transliterationText').textContent = translit;
   if (state.showTranslation && translation) $('#translationText').textContent = translation;
-
-  // Si on est en mode boucle, marquer la fin
-  if (state.readingMode === 'loop' && verse >= AYAH_COUNTS[surah - 1]) {
-    state.loopEnabled = true;
-  }
 }
 
 async function fetchArabic(surah, verse) {
@@ -354,20 +357,14 @@ async function fetchTranslation(surah, verse) {
 }
 
 // ============================================================
-// AUDIO
+// AUDIO — native <audio> element (pas d'AudioContext)
 // ============================================================
-let audioCtx = null;
-let currentAudioBuffer = null;
-let sourceNode = null;
-let gainNode = null;
-let analyserNode = null;
-let animationId = null;
-
 function setupAudioPlayer() {
   const audio = $('#audioPlayer');
 
   audio.addEventListener('timeupdate', () => {
-    const pct = (audio.currentTime / (audio.duration || 1)) * 100;
+    if (!audio.duration) return;
+    const pct = (audio.currentTime / audio.duration) * 100;
     $('#progressBar').value = Math.min(pct, 100);
     updatePlayerTime(formatTime(audio.currentTime));
   });
@@ -376,136 +373,66 @@ function setupAudioPlayer() {
     onAudioEnded();
   });
 
-  audio.addEventListener('loadedmetadata', () => {
-    $('#progressBar').max = audio.duration || 0;
+  audio.addEventListener('error', () => {
+    console.error('Audio error');
+    stopPlayback();
+    updatePlayerStatus('Erreur audio');
   });
 }
 
-function setupAudioContext() {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    gainNode = audioCtx.createGain();
-    gainNode.gain.value = 1;
-    analyserNode = audioCtx.createAnalyser();
-    analyserNode.fftSize = 256;
-    gainNode.connect(analyserNode);
-    analyserNode.connect(audioCtx.destination);
-  }
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
-  }
+function playCurrentVerse() {
+  if (state.isPlaying) return;
+  const surah = state.currentSurah;
+  const verse = state.currentVerse;
+  const url = getRecitationUrl(surah, verse, state.reciter);
+  url.then(u => {
+    if (u) playAudioUrl(u);
+    else updatePlayerStatus('Audio non disponible');
+  }).catch(() => updatePlayerStatus('Erreur'));
 }
 
-function playAudioFromUrl(url) {
+function playAudioUrl(url) {
   if (state.isPlaying) return;
 
-  // Vérifier cache d'abord
-  const cached = checkLocalCache(url);
-  if (cached) {
-    playFromCache(cached);
-    return;
-  }
+  const audio = $('#audioPlayer');
+  audio.src = url;
+  audio.style.display = 'none';
 
-  setupAudioContext();
-
-  fetch(url)
-    .then(r => r.arrayBuffer())
-    .then(buffer => audioCtx.decodeAudioData(buffer))
-    .then(buffer => {
-      currentAudioBuffer = buffer;
-      playBuffer(buffer);
-
-      // Téléchargement en arrière-plan pour cache
-      cacheAudio(url, buffer);
-    })
-    .catch(e => {
-      console.error('Audio load error:', e);
-      updatePlayerStatus('Erreur audio');
+  const playPromise = audio.play();
+  if (playPromise !== undefined) {
+    playPromise.catch(e => {
+      console.error('Playback failed:', e);
+      updatePlayerStatus('Erreur lecture');
+      state.isPlaying = false;
+      updatePlayButton();
     });
-}
-
-function playFromCache(buffer) {
-  playBuffer(buffer);
-}
-
-function playBuffer(buffer) {
-  if (sourceNode) {
-    try { sourceNode.stop(); } catch {}
   }
-
-  sourceNode = audioCtx.createBufferSource();
-  sourceNode.buffer = buffer;
-  sourceNode.connect(gainNode);
-  sourceNode.start(0);
-  sourceNode.onended = () => {
-    if (state.isPlaying) onAudioEnded();
-  };
 
   state.isPlaying = true;
   updatePlayButton();
   updatePlayerStatus('Lecture...');
-  startAudioVisualizer();
-}
-
-function startAudioVisualizer() {
-  if (animationId) cancelAnimationFrame(animationId);
-
-  const dataArray = new Uint8Array(analyserNode.frequencyBinCount);
-
-  function updateBars() {
-    analyserNode.getByteFrequencyData(dataArray);
-    const cards = $$('.surah-card');
-    cards.forEach(card => {
-      const bars = card.querySelector('.audio-dots span');
-      if (bars) {
-        const energy = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-        const pct = Math.max(10, Math.min(100, energy));
-        bars.style.width = pct + '%';
-        bars.style.background = state.isPlaying ? 'var(--primary)' : 'var(--text-tertiary)';
-      }
-    });
-    if (state.isPlaying) {
-      animationId = requestAnimationFrame(updateBars);
-    }
-  }
-  updateBars();
 }
 
 function stopPlayback() {
-  if (sourceNode) {
-    try { sourceNode.stop(); } catch {}
-    sourceNode = null;
-  }
+  const audio = $('#audioPlayer');
+  audio.pause();
+  audio.currentTime = 0;
   state.isPlaying = false;
-  if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
   updatePlayButton();
   updatePlayerStatus('En pause');
-  $('#audioPlayer').currentTime = 0;
   $('#progressBar').value = 0;
-  $$('.surah-card-audio .audio-dots span').forEach(span => {
-    span.style.width = '';
-    span.style.background = '';
-  });
 }
 
 function togglePlayback() {
   if (state.isPlaying) {
     stopPlayback();
   } else {
-    // En mode range, jouer la plage
+    // Mode range: jouer la plage
     if (state.readingMode === 'range') {
       playRange();
       return;
     }
-    // En mode boucle, jouer le verset courant
-    const surah = state.currentSurah;
-    const verse = state.currentVerse;
-    getRecitationUrl(surah, verse, state.reciter)
-      .then(url => {
-        if (url) playAudioFromUrl(url);
-        else updatePlayerStatus('Audio non disponible');
-      })
-      .catch(() => updatePlayerStatus('Erreur'));
+    playCurrentVerse();
   }
 }
 
@@ -516,7 +443,6 @@ function playRange() {
 
   function playNext() {
     if (current > end) {
-      // Fin de la plage
       stopPlayback();
       updatePlayerStatus('Plage terminée');
       state.currentVerse = start;
@@ -525,21 +451,23 @@ function playRange() {
 
     state.currentVerse = current;
     loadVerse(state.currentSurah, current).then(() => {
-      getRecitationUrl(state.currentSurah, current, state.reciter)
-        .then(url => {
-          if (url) {
-            playAudioFromUrl(url);
-            // Quand le buffer se termine, passer au suivant
-            // (géré par sourceNode.onended -> onAudioEnded)
-          } else {
+      const url = getRecitationUrl(state.currentSurah, current, state.reciter);
+      url.then(u => {
+        if (u) {
+          const audio = $('#audioPlayer');
+          audio.src = u;
+          audio.play().catch(() => {
             current++;
             playNext();
-          }
-        })
-        .catch(() => {
+          });
+        } else {
           current++;
           playNext();
-        });
+        }
+      }).catch(() => {
+        current++;
+        playNext();
+      });
     });
   }
 
@@ -547,15 +475,12 @@ function playRange() {
 }
 
 function onAudioEnded() {
-  if (state.readingMode === 'range') {
-    // La plage gère son propre passage
-    return;
-  }
+  if (state.readingMode === 'range') return; // géré par playRange
 
   if (state.loopEnabled) {
     // Rejouer le même verset
     const url = getRecitationUrl(state.currentSurah, state.currentVerse, state.reciter);
-    url.then(u => { if (u) playAudioFromUrl(u); });
+    url.then(u => { if (u) playAudioUrl(u); });
   } else {
     nextVerse();
   }
@@ -566,9 +491,7 @@ function onAudioEnded() {
 // ============================================================
 function prevVerse() {
   if (state.readingMode === 'range') {
-    if (state.currentVerse > state.rangeStart) {
-      state.currentVerse--;
-    }
+    if (state.currentVerse > state.rangeStart) state.currentVerse--;
     return;
   }
 
@@ -579,10 +502,7 @@ function prevVerse() {
     state.currentVerse = AYAH_COUNTS[state.currentSurah - 1];
   }
   loadVerse(state.currentSurah, state.currentVerse).then(() => {
-    if (state.isPlaying) {
-      const url = getRecitationUrl(state.currentSurah, state.currentVerse, state.reciter);
-      url.then(u => { if (u) playAudioFromUrl(u); });
-    }
+    if (state.isPlaying) playCurrentVerse();
   });
 }
 
@@ -601,10 +521,7 @@ function nextVerse() {
     state.currentVerse = 1;
   }
   loadVerse(state.currentSurah, state.currentVerse).then(() => {
-    if (state.isPlaying) {
-      const url = getRecitationUrl(state.currentSurah, state.currentVerse, state.reciter);
-      url.then(u => { if (u) playAudioFromUrl(u); });
-    }
+    if (state.isPlaying) playCurrentVerse();
   });
 }
 
@@ -637,7 +554,7 @@ async function getRecitationUrl(surah, verse, reciter) {
     const d = await r.json();
     return d.data?.audio || null;
   } catch {
-    // Fallback vers EveryAyah CDN
+    // Fallback EveryAyah
     const map = {
       'ar.alafasy': 'Alafasy_128kbps',
       'ar.husary': 'Husary_128kbps',
@@ -649,69 +566,15 @@ async function getRecitationUrl(surah, verse, reciter) {
 }
 
 // ============================================================
-// CACHE OFFLINE (IndexedDB)
-// ============================================================
-const DB_NAME = 'QuranCache';
-const DB_VERSION = 1;
-const STORE_NAME = 'audio';
-
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'url' });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function checkLocalCache(url) {
-  try {
-    const db = await openDB();
-    return new Promise((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.get(url);
-      req.onsuccess = () => {
-        if (req.result) {
-          const audioBuffer = audioCtx.decodeAudioData(req.result.buffer);
-          resolve(audioBuffer);
-        } else {
-          resolve(null);
-        }
-      };
-      req.onerror = () => resolve(null);
-    });
-  } catch {
-    return null;
-  }
-}
-
-async function cacheAudio(url, buffer) {
-  try {
-    const db = await openDB();
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-    store.put({ url, buffer: buffer.copyToArray() });
-  } catch (e) {
-    console.warn('Cache error:', e);
-  }
-}
-
-// ============================================================
-// TÉLÉCHARGEMENT POUR HORS-LIGNE
+// TÉLÉCHARGEMENT
 // ============================================================
 async function downloadSurah(surahNum) {
-  if (state.cache.downloading[surahNum]) {
-    updatePlayerStatus('Déjà téléchargement...');
+  if (state.downloading[surahNum]) {
+    updatePlayerStatus('Déjà en cours...');
     return;
   }
 
-  state.cache.downloading[surahNum] = true;
+  state.downloading[surahNum] = true;
   updatePlayerStatus(`Téléchargement sourate ${surahNum}...`);
 
   const total = AYAH_COUNTS[surahNum - 1];
@@ -720,37 +583,27 @@ async function downloadSurah(surahNum) {
   try {
     for (let verse = 1; verse <= total; verse++) {
       const url = await getRecitationUrl(surahNum, verse, state.reciter);
-
       if (url) {
         try {
           const response = await fetch(url);
           const buffer = await response.arrayBuffer();
-          const audioBuffer = await audioCtx.decodeAudioData(buffer);
-
-          // Cache l'audio
-          await cacheAudio(url, audioBuffer);
+          // TODO: stocker en cache (IndexedDB) si besoin
           downloaded++;
-        } catch (e) {
-          console.warn(`Verse ${verse} download failed`);
-        }
+        } catch { console.warn(`Verse ${verse} failed`); }
       }
-
-      // Mise à jour progression
       const pct = Math.round((downloaded / total) * 100);
       updatePlayerStatus(`${surahNum}: ${downloaded}/${total} (${pct}%)`);
     }
 
-    // Marquer comme téléchargé
-    state.cache.downloadedSurahs[surahNum] = true;
-    localStorage.setItem('quran-downloaded', JSON.stringify(state.cache.downloadedSurahs));
+    state.downloadedSurahs[surahNum] = true;
+    localStorage.setItem('quran-downloaded', JSON.stringify(state.downloadedSurahs));
     updatePlayerStatus(`Sourate ${surahNum} téléchargée!`);
     renderSurahList($('#surahGrid'));
     loadCacheStatus();
-
-  } catch (e) {
+  } catch {
     updatePlayerStatus('Erreur téléchargement');
   } finally {
-    state.cache.downloading[surahNum] = false;
+    state.downloading[surahNum] = false;
   }
 }
 
@@ -758,7 +611,7 @@ function loadCacheStatus() {
   try {
     const saved = localStorage.getItem('quran-downloaded');
     if (saved) {
-      state.cache.downloadedSurahs = JSON.parse(saved);
+      state.downloadedSurahs = JSON.parse(saved);
       renderSurahList($('#surahGrid'));
     }
   } catch {}
@@ -767,16 +620,17 @@ function loadCacheStatus() {
 async function handleDownloadClick() {
   const surah = state.currentSurah;
 
-  if (state.cache.downloadedSurahs[surah]) {
-    // Déjà téléchargé, vider le cache
-    if (confirm(`La sourate ${surah} est déjà téléchargée. Voulez-vous la supprimer du cache?`)) {
-      // Pour simplifier, on ne supprime pas individuellement
-      updatePlayerStatus('Cache déjà présent');
+  if (state.downloadedSurahs[surah]) {
+    if (confirm(`Sourate ${surah} déjà téléchargée. Supprimer du cache?`)) {
+      delete state.downloadedSurahs[surah];
+      localStorage.setItem('quran-downloaded', JSON.stringify(state.downloadedSurahs));
+      renderSurahList($('#surahGrid'));
+      loadCacheStatus();
     }
     return;
   }
 
-  if (confirm(`Télécharger la sourate ${surah} (${AYAH_COUNTS[surah-1]} versets) pour consultation hors-ligne?\n Cela peut prendre quelques minutes.`)) {
+  if (confirm(`Télécharger la sourate ${surah} (${AYAH_COUNTS[surah-1]} versets) pour consultation hors-ligne? Cela peut prendre quelques minutes.`)) {
     await downloadSurah(surah);
   }
 }
@@ -814,16 +668,9 @@ function formatTime(seconds) {
 // ÉVÉNEMENTS
 // ============================================================
 function setupEventListeners() {
-  // Thème
   $('#themeToggle').addEventListener('click', toggleTheme);
-
-  // Retour
   $('#backToList').addEventListener('click', closeReader);
-
-  // Play/Pause
   $('#playBtn').addEventListener('click', togglePlayback);
-
-  // Navigation
   $('#prevVerseBtn').addEventListener('click', prevVerse);
   $('#nextVerseBtn').addEventListener('click', nextVerse);
   $('#prevSurahBtn').addEventListener('click', prevSurah);
@@ -837,7 +684,7 @@ function setupEventListeners() {
     }
   });
 
-  // Sélecteur récitateur
+  // Reciter select
   const reciterSelect = $('#reciterSelect');
   RECITERS.forEach(r => {
     const opt = document.createElement('option');
@@ -847,47 +694,41 @@ function setupEventListeners() {
   });
   reciterSelect.value = state.reciter;
   reciterSelect.addEventListener('change', () => {
-    state.reciter = reciterSelect.value;
-    if (state.isPlaying) {
-      stopPlayback();
-      const url = getRecitationUrl(state.currentSurah, state.currentVerse, state.reciter);
-      url.then(u => { if (u) playAudioFromUrl(u); });
-    }
+    setReciter(reciterSelect.value);
   });
 
-  // Modes de lecture
+  // Global mode chips
   $$('.mode-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      setReadingMode(chip.dataset.mode);
-    });
+    chip.addEventListener('click', () => setReadingMode(chip.dataset.mode));
   });
 
-  // Appliquer plage
-  $('#rangeApplyBtn').addEventListener('click', applyRange);
+  // Global loop toggle
+  $('#loopToggle').addEventListener('click', toggleLoop);
 
-  // Appliquer page
-  $('#pageGoBtn').addEventListener('click', applyPage);
-  $('#pageInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') applyPage();
+  // Global range apply
+  $('#rangeApplyBtnGlobal').addEventListener('click', applyGlobalRange);
+
+  // Global page go
+  $('#pageGoBtnGlobal').addEventListener('click', applyGlobalPage);
+  $('#pageInputGlobal').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') applyGlobalPage();
   });
 
-  // Options texte
+  // Text options
   $$('.opt-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const opt = btn.dataset.opt;
       const isActive = btn.classList.toggle('active');
-
       if (opt === 'arabic') state.showArabic = isActive;
       if (opt === 'transliteration') state.showTransliteration = isActive;
       if (opt === 'translation') state.showTranslation = isActive;
-
       $('#verseArabic').style.display = state.showArabic ? '' : 'none';
       $('#verseTransliteration').style.display = state.showTransliteration ? '' : 'none';
       $('#verseTranslation').style.display = state.showTranslation ? '' : 'none';
     });
   });
 
-  // Recherche
+  // Search
   const searchInput = $('#searchInput');
   const searchResults = $('#searchResults');
   const searchClear = $('#searchClear');
@@ -949,7 +790,7 @@ function setupEventListeners() {
     searchInput.focus();
   });
 
-  // Raccourcis clavier
+  // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
@@ -981,10 +822,8 @@ function setupEventListeners() {
     }
   });
 
-  // Swipe tactile
-  let touchStartX = 0;
-  let touchStartY = 0;
-
+  // Touch swipe
+  let touchStartX = 0, touchStartY = 0;
   document.addEventListener('touchstart', (e) => {
     if ($('#readerSection').style.display === 'none') return;
     touchStartX = e.changedTouches[0].screenX;
@@ -995,17 +834,14 @@ function setupEventListeners() {
     if ($('#readerSection').style.display === 'none') return;
     const dx = e.changedTouches[0].screenX - touchStartX;
     const dy = e.changedTouches[0].screenY - touchStartY;
-
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
-      if (dx > 0) prevVerse();
-      else nextVerse();
+      if (dx > 0) prevVerse(); else nextVerse();
     } else if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 80) {
-      if (dy > 0) prevSurah();
-      else nextSurah();
+      if (dy > 0) prevSurah(); else nextSurah();
     }
   }, { passive: true });
 
-  // Téléchargement
+  // Download
   $('#downloadBtn').addEventListener('click', handleDownloadClick);
 }
 
@@ -1014,7 +850,7 @@ function setupEventListeners() {
 // ============================================================
 document.addEventListener('DOMContentLoaded', init);
 
-// Liens profonds
+// Deep links
 window.addEventListener('popstate', () => {
   const hash = location.hash;
   if (hash.startsWith('#surah-')) {
@@ -1025,7 +861,5 @@ window.addEventListener('popstate', () => {
 
 if (location.hash.startsWith('#surah-')) {
   const num = parseInt(location.hash.split('-')[1], 10);
-  if (num >= 1 && num <= 114) {
-    setTimeout(() => openSurah(num), 300);
-  }
+  if (num >= 1 && num <= 114) setTimeout(() => openSurah(num), 300);
 }

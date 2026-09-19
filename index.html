@@ -38,6 +38,52 @@
       <div class="search-results" id="searchResults" style="display:none"></div>
     </div>
 
+    <!-- OPTIONS DE LECTURE (accueil, avant la grille) -->
+    <div class="reading-options-bar">
+      <div class="options-row">
+        <div class="mode-selector">
+          <label>Mode</label>
+          <div class="mode-chips">
+            <button class="mode-chip active" data-mode="single">Single</button>
+            <button class="mode-chip" data-mode="range">Plage</button>
+            <button class="mode-chip" data-mode="page">Page</button>
+            <button class="mode-chip" data-mode="loop">Boucle</button>
+          </div>
+        </div>
+        <div class="options-row-right">
+          <button class="loop-toggle" id="loopToggle" title="Activer la boucle">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            <span>Boucle</span>
+          </button>
+          <div class="reciter-select">
+            <select id="reciterSelect"></select>
+          </div>
+        </div>
+      </div>
+      <!-- Config plage (visible si mode=range) -->
+      <div class="range-config-global" id="rangeConfigGlobal" style="display:none">
+        <div class="range-inputs">
+          <div class="range-field">
+            <label>Du verset</label>
+            <input type="number" id="rangeStartGlobal" min="1" value="1">
+          </div>
+          <div class="range-field">
+            <label>Au verset</label>
+            <input type="number" id="rangeEndGlobal" min="1" value="5">
+          </div>
+          <button class="range-apply-btn" id="rangeApplyBtnGlobal">Appliquer</button>
+        </div>
+      </div>
+      <!-- Config page (visible si mode=page) -->
+      <div class="page-config-global" id="pageConfigGlobal" style="display:none">
+        <div class="page-input-row">
+          <label>Page</label>
+          <input type="number" id="pageInputGlobal" min="1" max="604" value="1">
+          <button class="page-go-btn" id="pageGoBtnGlobal">Aller</button>
+        </div>
+      </div>
+    </div>
+
     <main class="main">
       <!-- Liste des sourates -->
       <section class="section" id="surahList">
@@ -58,47 +104,6 @@
           <div class="reader-info">
             <h2 id="readerSurahName">—</h2>
             <span id="readerVerseInfo" class="verse-badge">Verset 1</span>
-          </div>
-        </div>
-
-        <!-- Modes de lecture & options -->
-        <div class="reader-controls">
-          <div class="mode-selector">
-            <label>Mode</label>
-            <div class="mode-chips">
-              <button class="mode-chip active" data-mode="single">Single</button>
-              <button class="mode-chip" data-mode="range">Plage</button>
-              <button class="mode-chip" data-mode="page">Page</button>
-              <button class="mode-chip" data-mode="loop">Boucle</button>
-            </div>
-          </div>
-          <div class="reciter-select">
-            <label for="reciterSelect">Récitateur</label>
-            <select id="reciterSelect"></select>
-          </div>
-        </div>
-
-        <!-- Range selector (visible en mode range) -->
-        <div class="range-config" id="rangeConfig" style="display:none">
-          <div class="range-inputs">
-            <div class="range-field">
-              <label>Du verset</label>
-              <input type="number" id="rangeStart" min="1" value="1">
-            </div>
-            <div class="range-field">
-              <label>Au verset</label>
-              <input type="number" id="rangeEnd" min="1" value="5">
-            </div>
-            <button class="range-apply-btn" id="rangeApplyBtn">Appliquer</button>
-          </div>
-        </div>
-
-        <!-- Page selector (visible en mode page) -->
-        <div class="page-config" id="pageConfig" style="display:none">
-          <div class="page-input-row">
-            <label>Page</label>
-            <input type="number" id="pageInput" min="1" max="604" value="1">
-            <button class="page-go-btn" id="pageGoBtn">Aller</button>
           </div>
         </div>
 
@@ -152,7 +157,6 @@
           </div>
         </div>
 
-        <!-- Bouton téléchargement -->
         <button class="download-btn" id="downloadBtn" title="Télécharger pour hors-ligne">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span>Télécharger</span>
