@@ -604,6 +604,29 @@ function updateLoopUI() {
 function setLoopMode(mode) {
   state.loopMode = mode;
   updateLoopUI();
+  // Afficher/masquer le champ boucle page
+  const loopPageConfig = $('#loopPageConfig');
+  const loopPageInput = $('#loopPageInput');
+  const loopPageApplyBtn = $('#loopPageApplyBtn');
+  if (mode === 'page') {
+    loopPageConfig.style.display = 'block';
+    loopPageInput.disabled = false;
+    loopPageApplyBtn.disabled = false;
+    loopPageInput.value = state.loopPage || 1;
+  } else {
+    loopPageConfig.style.display = 'none';
+    loopPageInput.disabled = true;
+    loopPageApplyBtn.disabled = true;
+  }
+}
+
+function applyLoopPage() {
+  const pageInput = $('#loopPageInput');
+  const page = parseInt(pageInput.value, 10);
+  if (page > 0) {
+    state.loopPage = page;
+    updatePlayerStatus(`Boucle page ${page} fixée`);
+  }
 }
 function setReciter(reciterId) {
   state.reciter = reciterId;
@@ -997,6 +1020,10 @@ function setupEventListeners() {
   $('#pageGoBtnGlobal').addEventListener('click', applyGlobalPage);
   $('#pageInputGlobal').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') applyGlobalPage();
+  });
+  $('#loopPageApplyBtn').addEventListener('click', applyLoopPage);
+  $('#loopPageInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') applyLoopPage();
   });
   $$('.opt-btn').forEach(btn => {
     btn.addEventListener('click', () => {
